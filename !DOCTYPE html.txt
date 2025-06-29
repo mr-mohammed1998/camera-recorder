@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <title>تسجيل ورفع فيديو</title>
+</head>
+<body>
+  <h2>اضغط على الزر لتسجيل فيديوك ثم رفعه تلقائيًا</h2>
+
+  <video id="preview" autoplay playsinline style="width:300px; border:1px solid gray;"></video><br>
+  <button id="start">ابدأ التسجيل</button>
+  <button id="stop" disabled>أوقف التسجيل وارفع</button>
+  <p id="status"></p>
+
+  <script>
+    let mediaRecorder;
+    let recordedChunks = [];
+    const startBtn = document.getElementById("start");
+    const stopBtn = document.getElementById("stop");
+    const video = document.getElementById("preview");
+    const status = document.getElementById("status");
+
+    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+      .then(stream => {
+        video.srcObject = stream;
+        mediaRecorder = new MediaRecorder(stream);
+
+        mediaRecorder.ondataavailable = event => {
+          if (event.data.size > 0) recordedChunks.push(event.data);
+        };
+
+        mediaRecorder.onstop = async () => {
+          const blob = new Blob(recordedChunks, { type: "video/webm" });
+          const reader = new FileReader();
+          reader.onloadend = async () => {
+            const base64Data = reader.result.split(",")[1];
+
+            status.textContent = "📤 جارٍ رفع الفيديو إلى Google Drive...";
+
+            const formData = new FormData();
+            formData.append("videoFile", base64Data);
+
+            try {
+              const response = await fetch("https://script.google.com/macros/s/AKfycbz9bVQpEPi0NKHKWqEU-srQ3P0icy-uB_Hh89EwjW4aaUzfCU5MeNttmrXrUTaoIdF7/exec", {
+                method: "POST",
+                body: new URLSearchParams({ videoFile: base64Data })
+              });
+
+              const text = await response.text();
+              status.textContent = `✅ تم الرفع: ${text}`;
+              recordedChunks = [];
+            } catch (error) {
+              status.textContent = "❌ فشل في الرفع: " + error;
+            }
+          };
+          reader.readAsDataURL(blob);
+        };
+
+        startBtn.onclick = () => {
+          recordedChunks = [];
+          mediaRecorder.start();
+          status.textContent = "🔴 التسجيل جارٍ...";
+          startBtn.disabled = true;
+          stopBtn.disabled = false;
+        };
+
+        stopBtn.onclick = () => {
+          mediaRecorder.stop();
+          status.textContent = "🛑 تم إيقاف التسجيل، جاري المعالجة...";
+          startBtn.disabled = false;
+          stopBtn.disabled = true;
+        };
+      })
+      .catch(error => {
+        status.textContent = "❌ لم نتمكن من الوصول للكاميرا.";
+        console.error("Camera error:", error);
+      });
+  </script>
+</body>
+</html>
