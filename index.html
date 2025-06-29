@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head><title>تسجيل فيديو بالكاميرا</title></head>
+<body>
+  <h1>سجّل فيديوك</h1>
+  <video id="player" autoplay playsinline></video><br>
+  <button id="record">ابدأ/أوقف التسجيل</button>
+  <a id="downloadLink" style="display:none">نزّل الفيديو</a>
+  <script>
+    const player = document.getElementById('player'),
+          btn = document.getElementById('record'),
+          dl = document.getElementById('downloadLink');
+    let mediaRecorder, chunks = [];
+    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+      .then(stream => {
+        player.srcObject = stream;
+        mediaRecorder = new MediaRecorder(stream);
+        mediaRecorder.ondataavailable = e => chunks.push(e.data);
+        mediaRecorder.onstop = () => {
+          const blob = new Blob(chunks, { type: 'video/webm' });
+          dl.href = URL.createObjectURL(blob);
+          dl.download = 'video.webm';
+          dl.style.display = 'block';
+        };
+      }).catch(()=>alert('يرجى السماح بالوصول للكاميرا'));
+    btn.onclick = () => mediaRecorder.state === 'recording'
+      ? mediaRecorder.stop()
+      : (chunks=[], dl.style.display='none', mediaRecorder.start());
+  </script>
+</body>
+</html>
